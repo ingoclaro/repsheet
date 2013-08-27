@@ -24,83 +24,86 @@
 
 #include "hiredis/hiredis.h"
 
+#include "mod_repsheet.h"
 #include "proxy.h"
 #include "mod_security.h"
 #include "repsheet.h"
 
-#define REPSHEET_VERSION "0.9"
-
-typedef struct {
-  int repsheet_enabled;
-  int recorder_enabled;
-  int filter_enabled;
-  int proxy_headers_enabled;
-  int geoip_enabled;
-  int action;
-  const char *prefix;
-
-  const char *redis_host;
-  int redis_port;
-  int redis_timeout;
-  int redis_max_length;
-  int redis_expiry;
-} repsheet_config;
-static repsheet_config config;
-
 const char *repsheet_set_enabled(cmd_parms *cmd, void *cfg, const char *arg)
 {
-  if (!strcasecmp(arg, "on")) {
+  if (strcasecmp(arg, "on") == 0) {
     config.repsheet_enabled = 1;
-  } else {
+    return NULL;
+  } else if (strcasecmp(arg, "off") == 0) {
     config.repsheet_enabled = 0;
+    return NULL;
+  } else {
+    return "[ModRepsheet] - The RepsheetEnabled directive must be set to On or Off";
   }
-  return NULL;
 }
 
 const char *repsheet_set_recorder_enabled(cmd_parms *cmd, void *cfg, const char *arg)
 {
-  if (!strcasecmp(arg, "on")) {
+  if (strcasecmp(arg, "on") == 0) {
     config.recorder_enabled = 1;
-  } else {
+    return NULL;
+  } else if (strcasecmp(arg, "off") == 0) {
     config.recorder_enabled = 0;
+    return NULL;
+  } else {
+    return "[ModRepsheet] - The RepsheetRecorder directive must be set to On or Off";
   }
-  return NULL;
 }
 
 const char *repsheet_set_filter_enabled(cmd_parms *cmd, void *cfg, const char *arg)
 {
-  if (!strcasecmp(arg, "on")) {
+  if (strcasecmp(arg, "on") == 0) {
     config.filter_enabled = 1;
-  } else {
+    return NULL;
+  } else if (strcasecmp(arg, "off") == 0) {
     config.filter_enabled = 0;
+    return NULL;
+  } else {
+    return "[ModRepsheet] - The RepsheetFilter directive must be set to On or Off";
   }
-  return NULL;
 }
 
 const char *repsheet_set_geoip_enabled(cmd_parms *cmd, void *cfg, const char *arg)
 {
-  if (!strcasecmp(arg, "on")) {
+  if (strcasecmp(arg, "on") == 0) {
     config.geoip_enabled = 1;
-  } else {
+    return NULL;
+  } else if (strcasecmp(arg, "off") == 0) {
     config.geoip_enabled = 0;
+    return NULL;
+  } else {
+    return "[ModRepsheet] - The RepsheetGeoIP directive must be set to On or Off";
   }
-  return NULL;
 }
 
 const char *repsheet_set_proxy_headers_enabled(cmd_parms *cmd, void *cfg, const char *arg)
 {
-  if (!strcasecmp(arg, "on")) {
+  if (strcasecmp(arg, "on") == 0) {
     config.proxy_headers_enabled = 1;
-  } else {
+    return NULL;
+  } else if (strcasecmp(arg, "off") == 0) {
     config.proxy_headers_enabled = 0;
+    return NULL;
+  } else {
+    return "[ModRepsheet] - The RepsheetProxyHeaders directive must be set to On or Off";
   }
-  return NULL;
 }
 
 const char *repsheet_set_timeout(cmd_parms *cmd, void *cfg, const char *arg)
 {
-  config.redis_timeout = atoi(arg) * 1000;
-  return NULL;
+  int timeout = atoi(arg) * 1000;
+
+  if (timeout > 0) {
+    config.redis_timeout = timeout;
+    return NULL;
+  } else {
+    return "[ModRepsheet] - The RepsheetRedisTimeout directive must be a number";
+  }
 }
 
 const char *repsheet_set_host(cmd_parms *cmd, void *cfg, const char *arg)
@@ -111,14 +114,26 @@ const char *repsheet_set_host(cmd_parms *cmd, void *cfg, const char *arg)
 
 const char *repsheet_set_port(cmd_parms *cmd, void *cfg, const char *arg)
 {
-  config.redis_port = atoi(arg);
-  return NULL;
+  int port = atoi(arg);
+
+  if (port > 0) {
+    config.redis_port = port;
+    return NULL;
+  } else {
+    return "[ModRepsheet] - The RepsheetRedisPort directive must be a number";
+  }
 }
 
 const char *repsheet_set_length(cmd_parms *cmd, void *cfg, const char *arg)
 {
-  config.redis_max_length = atoi(arg);
-  return NULL;
+  int length = atoi(arg);
+
+  if (length > 0) {
+    config.redis_max_length = length;
+    return NULL;
+  } else {
+    return "[ModRepsheet] - The RepsheetRedisMaxLength directive must be a number";
+  }
 }
 
 const char *repsheet_set_expiry(cmd_parms *cmd, void *cfg, const char *arg)
@@ -135,14 +150,18 @@ const char *repsheet_set_prefix(cmd_parms *cmd, void *cfg, const char *arg)
 
 const char *repsheet_set_action(cmd_parms *cmd, void *cfg, const char *arg)
 {
-  if (strcmp(arg, "Notify") == 0) {
+  if (strcasecmp(arg, "notify") == 0) {
     config.action = NOTIFY;
-  } else if (strcmp(arg, "Block") == 0) {
+    return NULL;
+  } else if (strcasecmp(arg, "block") == 0) {
     config.action = BLOCK;
-  } else {
+    return NULL;
+  } else if (strcasecmp(arg, "allow") == 0) {
     config.action = ALLOW;
+    return NULL;
+  } else {
+    return "[ModRepsheet] - The RepsheetAction directive must be set to Block, Notify, or Allow";
   }
-  return NULL;
 }
 
 static const command_rec repsheet_directives[] =
@@ -368,7 +387,18 @@ static int repsheet_mod_security_filter(request_rec *r)
 }
 
 static int hook_post_config(apr_pool_t *mp, apr_pool_t *mp_log, apr_pool_t *mp_temp, server_rec *s) {
-  ap_log_error(APLOG_MARK, APLOG_NOTICE | APLOG_NOERRNO, 0, s, "Repsheet Version %s Enabled", REPSHEET_VERSION);
+  void *init_flag = NULL;
+  int first_time = 0;
+
+  apr_pool_userdata_get(&init_flag, "mod_repsheet-init-flag", s->process->pool);
+
+  if (init_flag == NULL) {
+    first_time = 1;
+    apr_pool_userdata_set((const void *)1, "mod_repsheet-init-flag", apr_pool_cleanup_null, s->process->pool);
+    ap_log_error(APLOG_MARK, APLOG_NOTICE | APLOG_NOERRNO, 0, s, "ModRepsheet for Apache %s (%s) loaded", REPSHEET_VERSION, REPSHEET_URL);
+    return OK;
+  }
+
   return OK;
 }
 
