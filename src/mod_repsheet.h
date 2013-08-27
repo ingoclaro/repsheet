@@ -14,7 +14,7 @@
   limitations under the License.
 */
 
-#define REPSHEET_VERSION "0.9"
+#define REPSHEET_VERSION "1.0.0"
 #define REPSHEET_URL "http://getrepsheet.com"
 
 typedef struct {
