@@ -1,6 +1,6 @@
 Summary: A reputation based intelligence engine for Apache
 Name: mod_repsheet
-Version: 0.9
+Version: 1.0.0
 Release: 1
 License: ASL 2.0
 Group: System Environment/Daemons
@@ -41,6 +41,8 @@ rm -rf $RPM_BUILD_ROOT
 %config %{_sysconfdir}/httpd/conf.d/00_mod_repsheet.conf
 
 %changelog
+* Tue Aug 27 2013 Aaron Bedra <aaron@aaronbedra.com> - 1.0.0-1
+- Adds additional configuration checks. Moves to SEMVER.
 * Wed Jul 24 2013 Aaron Bedra <aaron@aaronbedra.com> - 0.9-1
 - Fixes an issue where Redis connections were left open during blocking
 * Fri Jul 19 2013 Aaron Bedra <aaron@aaronbedra.com> - 0.8-1
