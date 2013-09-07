@@ -38,25 +38,36 @@ typedef struct {
 
 } repsheet_loc_conf_t;
 
+ngx_module_t ngx_http_repsheet_module;
 
 static redisContext*
 get_redis_context(ngx_http_request_t *r)
 {
   redisContext *context;
-  struct timeval timeout = {0, 5000};
+  repsheet_main_conf_t *conf;
 
-  context = redisConnectWithTimeout("localhost", 6379, timeout);
-  if (context == NULL || context->err) {
-    if (context) {
-      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s Redis Connection Error: %s", "[repsheet]", context->errstr);
-      redisFree(context);
-    } else {
-      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s Connection Error: can't allocate redis context", "[repsheet]");
-    }
+  conf = ngx_http_get_module_main_conf(r, ngx_http_repsheet_module);
+
+  char host[255];
+  struct timeval timeout = { 0, conf->redis.timeout };
+  ngx_uint_t port = conf->redis.port;
+  ngx_cpystrn(host, conf->redis.host.data, conf->redis.host.len+1);
+
+  context = redisConnectWithTimeout(host, port, timeout);
+
+  if (context == NULL) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s Connection Error: can't allocate redis context", "[repsheet]");
     return NULL;
-  } else {
-    return context;
+
   }
+
+  if (context->err) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s Redis Connection Error: %s", "[repsheet]", context->errstr);
+    redisFree(context);
+    return NULL;
+  }
+
+  return context;
 }
 
 
@@ -69,6 +80,13 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
 
   redisContext *context;
   redisReply *reply;
+  repsheet_loc_conf_t *conf;
+
+  conf = ngx_http_get_module_loc_conf(r, ngx_http_repsheet_module);
+
+  if (!conf->enabled) {
+    return NGX_DECLINED;
+  }
 
   context = get_redis_context(r);
   if (context == NULL) {
