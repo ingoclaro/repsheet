@@ -39,7 +39,8 @@ typedef struct {
 } repsheet_loc_conf_t;
 
 
-static redisContext *get_redis_context(ngx_http_request_t *r)
+static redisContext*
+get_redis_context(ngx_http_request_t *r)
 {
   redisContext *context;
   struct timeval timeout = {0, 5000};
@@ -58,7 +59,9 @@ static redisContext *get_redis_context(ngx_http_request_t *r)
   }
 }
 
-static ngx_int_t ngx_http_repsheet_handler(ngx_http_request_t *r)
+
+static ngx_int_t
+ngx_http_repsheet_handler(ngx_http_request_t *r)
 {
   if (r->main->internal) {
     return NGX_DECLINED;
@@ -88,12 +91,9 @@ static ngx_int_t ngx_http_repsheet_handler(ngx_http_request_t *r)
   return NGX_DECLINED;
 }
 
-static char *ngx_http_repsheet(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-{
-  return NGX_CONF_OK;
-}
 
-static ngx_int_t ngx_http_repsheet_init(ngx_conf_t *cf)
+static ngx_int_t
+ngx_http_repsheet_init(ngx_conf_t *cf)
 {
   ngx_http_handler_pt *h;
   ngx_http_core_main_conf_t *cmcf;
