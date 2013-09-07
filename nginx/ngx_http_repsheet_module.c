@@ -29,12 +29,14 @@ static redisContext *get_redis_context(ngx_http_request_t *r)
 
 static ngx_int_t ngx_http_repsheet_handler(ngx_http_request_t *r)
 {
-  if (r->main->internal) {
-    return NGX_DECLINED;
-  }
 
   redisContext *context;
   redisReply *reply;
+
+  // If the request has a valid parent then it's a subrequest
+  if (r->parent) {
+    return NGX_DECLINED;
+  }
 
   context = get_redis_context(r);
   if (context == NULL) {
@@ -53,7 +55,6 @@ static ngx_int_t ngx_http_repsheet_handler(ngx_http_request_t *r)
 
   redisFree(context);
 
-  r->main->internal = 1;
   return NGX_DECLINED;
 }
 
