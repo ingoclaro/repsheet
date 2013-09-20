@@ -4,10 +4,10 @@
 
 #include "hiredis/hiredis.h"
 
+#include "../src/repsheet.h"
 
 #define REPSHEET_ACTION_NOTIFY  0
 #define REPSHEET_ACTION_BLOCK   1
-
 
 static ngx_conf_bitmask_t ngx_http_repsheet_action_mask[] = {
   { ngx_string("notify"), REPSHEET_ACTION_NOTIFY },
@@ -48,17 +48,13 @@ get_redis_context(ngx_http_request_t *r)
 
   conf = ngx_http_get_module_main_conf(r, ngx_http_repsheet_module);
 
-  char host[255];
   struct timeval timeout = { 0, conf->redis.timeout };
-  ngx_uint_t port = conf->redis.port;
-  ngx_cpystrn(host, conf->redis.host.data, conf->redis.host.len+1);
 
-  context = redisConnectWithTimeout(host, port, timeout);
+  context = redisConnectWithTimeout((char*)conf->redis.host.data, conf->redis.port, timeout);
 
   if (context == NULL) {
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s Connection Error: can't allocate redis context", "[repsheet]");
     return NULL;
-
   }
 
   if (context->err) {
@@ -74,9 +70,6 @@ get_redis_context(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_repsheet_handler(ngx_http_request_t *r)
 {
-
-  redisContext *context;
-  redisReply *reply;
   repsheet_loc_conf_t *conf;
 
   conf = ngx_http_get_module_loc_conf(r, ngx_http_repsheet_module);
@@ -85,24 +78,45 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
     return NGX_DECLINED;
   }
 
-  // If the request has a valid parent then it's a subrequest
-  if (r->parent) {
+  if (r->main->internal) {
     return NGX_DECLINED;
   }
 
-  context = get_redis_context(r);
+  r->main->internal = 1;
+
+  redisContext *context = get_redis_context(r);
+  redisReply *reply;
+
   if (context == NULL) {
     return NGX_DECLINED;
   }
 
+  int action;
   ngx_str_t address = r->connection->addr_text;
 
-  reply = redisCommand(context, "GET %s:repsheet:blacklist", address.data);
-  if (reply->str && strcmp(reply->str, "true") == 0) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was blocked by the repsheet", "[repsheet]", address.data);
-    freeReplyObject(reply);
-    redisFree(context);
-    return NGX_HTTP_FORBIDDEN;
+  action = repsheet_ip_lookup(context, (char*)address.data);
+
+  if (action) {
+    if (action == BLOCK) {
+      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was blocked by the repsheet", "[repsheet]", address.data);
+      redisFree(context);
+      return NGX_HTTP_FORBIDDEN;
+    } else if (action == NOTIFY) {
+      if (conf->action == REPSHEET_ACTION_BLOCK) {
+	ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was blocked by the repsheet", "[repsheet]", address.data);
+        redisFree(context);
+        return NGX_HTTP_FORBIDDEN;
+      } else {
+	ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s IP Address %s was found on the repsheet. No action taken", "[repsheet]", address.data);
+	ngx_table_elt_t *h;
+	ngx_str_t label = ngx_string("X-Repsheet");
+	ngx_str_t val = ngx_string("true");
+	h = ngx_list_push(&r->headers_in.headers);
+	h->hash = 1;
+	h->key = label;
+	h->value = val;
+      }
+    }
   }
 
   redisFree(context);
@@ -131,7 +145,6 @@ ngx_http_repsheet_init(ngx_conf_t *cf)
 
 
 static ngx_command_t ngx_http_repsheet_commands[] = {
-  /* Location-specific commands */
   {
     ngx_string("repsheet"),
     NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
@@ -165,7 +178,6 @@ static ngx_command_t ngx_http_repsheet_commands[] = {
     &ngx_http_repsheet_action_mask
   },
 
-  /* Main-specific commands */
   {
     ngx_string("repsheet_redis_host"),
     NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
@@ -243,7 +255,6 @@ ngx_http_repsheet_create_loc_conf(ngx_conf_t *cf)
   conf->enabled = NGX_CONF_UNSET;
   conf->record = NGX_CONF_UNSET;
   conf->proxy_headers = NGX_CONF_UNSET;
-  conf->action = NGX_CONF_UNSET_UINT;
 
   return conf;
 }
@@ -278,8 +289,8 @@ static ngx_http_module_t ngx_http_repsheet_module_ctx = {
 
 ngx_module_t ngx_http_repsheet_module = {
   NGX_MODULE_V1,
-  &ngx_http_repsheet_module_ctx,    /* module context */
-  ngx_http_repsheet_commands,       /* module directives */
+  &ngx_http_repsheet_module_ctx, /* module context */
+  ngx_http_repsheet_commands,    /* module directives */
   NGX_HTTP_MODULE,               /* module type */
   NULL,                          /* init master */
   NULL,                          /* init module */
