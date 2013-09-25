@@ -12,11 +12,11 @@ BUILDDIR=$DIR/build
 echo $DIR
 
 if [ ! -d $BUILDDIR ]; then
-    mkdir $BUILDDIR
+    mkdir $BUILDDIR > /dev/null 2>&1
 fi
 
 if [ ! -d "vendor" ]; then
-    mkdir vendor
+    mkdir vendor > /dev/null 2>&1
 fi
 
 if [ ! -d "vendor/nginx-1.4.2" ]; then
@@ -32,10 +32,8 @@ if [ ! -d "vendor/nginx-1.4.2" ]; then
     printf "."
     make install >> install.log 2>&1
     popd > /dev/null 2>&1
-
-    pushd $BUILDDIR/nginx/conf > /dev/null 2>&1
-    sed -i.bak 's/listen       80;/listen       8889;/' nginx.conf
     popd > /dev/null 2>&1
+    ln -sf `pwd`/nginx/nginx.conf `pwd`/build/nginx/conf/nginx.conf
 
     printf "."
     printf " $GREEN [Complete] $RESET\n"

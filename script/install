@@ -1,3 +1,0 @@
-#!/bin/sh
-
-build/bin/apxs -i -a src/mod_repsheet.la

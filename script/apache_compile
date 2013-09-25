@@ -1,0 +1,4 @@
+#!/bin/sh
+
+make
+build/apache/bin/apxs -i -a src/mod_repsheet.la
