@@ -19,7 +19,7 @@ void setup(void)
 void teardown(void)
 {
   freeReplyObject(redisCommand(context, "flushdb"));
-  if (!reply == NULL) {
+  if (reply) {
     freeReplyObject(reply);
   }
   redisFree(context);
@@ -111,54 +111,40 @@ START_TEST(properly_trims_length_of_stored_records)
 }
 END_TEST
 
-START_TEST(repsheet_ip_lookup_returns_allow_when_not_on_repsheet_or_blacklist)
+START_TEST(repsheet_init_actor_initializes_with_the_proper_defaults)
 {
-  ck_assert_int_eq(repsheet_ip_lookup(context, "1.1.1.1"), ALLOW);
+  actor_t actor;
+  repsheet_init_actor(&actor);
+  ck_assert_int_eq(actor.whitelisted, 0);
+  ck_assert_int_eq(actor.blacklisted, 0);
+  ck_assert_int_eq(actor.offender, 0);
+  ck_assert(actor.address == NULL);
 }
 END_TEST
 
-START_TEST(repsheet_ip_lookup_returns_allow_when_on_the_whitelist)
+START_TEST(repsheet_score_actor_properly_sets_whitelist_and_blacklist)
 {
   freeReplyObject(redisCommand(context, "SET 1.1.1.1:repsheet:blacklist true"));
   freeReplyObject(redisCommand(context, "SET 1.1.1.1:repsheet:whitelist true"));
+  actor_t actor;
+  repsheet_init_actor(&actor);
+  actor.address = "1.1.1.1";
+  repsheet_score_actor(context, &actor);
 
-  ck_assert_int_eq(repsheet_ip_lookup(context, "1.1.1.1"), ALLOW);
+  ck_assert_int_eq(actor.whitelisted, 1);
+  ck_assert_int_eq(actor.blacklisted, 1);
 }
 END_TEST
 
-START_TEST(repsheet_ip_lookup_returns_notify_when_on_the_repsheet)
+START_TEST(repsheet_score_actor_properly_sets_offender_bit_on_actor)
 {
   freeReplyObject(redisCommand(context, "SET 1.1.1.1:repsheet true"));
+  actor_t actor;
+  repsheet_init_actor(&actor);
+  actor.address = "1.1.1.1";
+  repsheet_score_actor(context, &actor);
 
-  ck_assert_int_eq(repsheet_ip_lookup(context, "1.1.1.1"), NOTIFY);
-}
-END_TEST
-
-START_TEST(repsheet_ip_lookup_returns_block_when_on_the_blacklist)
-{
-  freeReplyObject(redisCommand(context, "SET 1.1.1.1:repsheet:blacklist true"));
-
-  ck_assert_int_eq(repsheet_ip_lookup(context, "1.1.1.1"), BLOCK);
-}
-END_TEST
-
-START_TEST(repsheet_geoip_lookup_returns_allow_when_country_is_null);
-{
-  ck_assert_int_eq(repsheet_geoip_lookup(context, NULL), ALLOW);
-}
-END_TEST
-
-START_TEST(repsheet_geoip_lookup_returns_allow_when_country_is_not_on_the_countries_list)
-{
-  ck_assert_int_eq(repsheet_geoip_lookup(context, "US"), ALLOW);
-}
-END_TEST
-
-START_TEST(repsheet_geoip_lookup_returns_notify_when_country_is_on_the_countries_list)
-{
-  freeReplyObject(redisCommand(context, "SADD repsheet:countries US"));
-
-  ck_assert_int_eq(repsheet_geoip_lookup(context, "US"), NOTIFY);
+  ck_assert_int_eq(actor.offender, 1);
 }
 END_TEST
 
@@ -178,20 +164,12 @@ Suite *make_repsheet_suite(void) {
   tcase_add_test(tc_record, properly_trims_length_of_stored_records);
   suite_add_tcase(suite, tc_record);
 
-  TCase *tc_ip_lookup = tcase_create("repsheet_ip_lookup");
-  tcase_add_checked_fixture(tc_ip_lookup, setup, teardown);
-  tcase_add_test(tc_ip_lookup, repsheet_ip_lookup_returns_allow_when_not_on_repsheet_or_blacklist);
-  tcase_add_test(tc_ip_lookup, repsheet_ip_lookup_returns_allow_when_on_the_whitelist);
-  tcase_add_test(tc_ip_lookup, repsheet_ip_lookup_returns_notify_when_on_the_repsheet);
-  tcase_add_test(tc_ip_lookup, repsheet_ip_lookup_returns_block_when_on_the_blacklist);
-  suite_add_tcase(suite, tc_ip_lookup);
-
-  TCase *tc_geoip_lookup = tcase_create("repsheet_geoip_lookup");
-  tcase_add_checked_fixture(tc_geoip_lookup, setup, teardown);
-  tcase_add_test(tc_geoip_lookup, repsheet_geoip_lookup_returns_allow_when_country_is_null);
-  tcase_add_test(tc_geoip_lookup, repsheet_geoip_lookup_returns_allow_when_country_is_not_on_the_countries_list);
-  tcase_add_test(tc_geoip_lookup, repsheet_geoip_lookup_returns_notify_when_country_is_on_the_countries_list);
-  suite_add_tcase(suite, tc_geoip_lookup);
+  TCase *tc_score_actor = tcase_create("repsheet_score_actor");
+  tcase_add_checked_fixture(tc_score_actor, setup, teardown);
+  tcase_add_test(tc_score_actor, repsheet_init_actor_initializes_with_the_proper_defaults);
+  tcase_add_test(tc_score_actor, repsheet_score_actor_properly_sets_whitelist_and_blacklist);
+  tcase_add_test(tc_score_actor, repsheet_score_actor_properly_sets_offender_bit_on_actor);
+  suite_add_tcase(suite, tc_score_actor);
 
   return suite;
 }

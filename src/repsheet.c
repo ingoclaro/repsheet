@@ -1,48 +1,35 @@
 #include "hiredis/hiredis.h"
 #include "repsheet.h"
 
-int repsheet_ip_lookup(redisContext *context, char *ip)
+void repsheet_init_actor(actor_t *actor)
 {
-  redisReply *reply;
-
-  reply = redisCommand(context, "GET %s:repsheet:whitelist", ip);
-  if (reply->str && strcmp(reply->str, "true") == 0) {
-    freeReplyObject(reply);
-    return ALLOW;
-  }
-
-  reply = redisCommand(context, "GET %s:repsheet:blacklist", ip);
-  if (reply->str && strcmp(reply->str, "true") == 0) {
-    freeReplyObject(reply);
-    return BLOCK;
-  }
-
-  reply = redisCommand(context, "GET %s:repsheet", ip);
-  if (reply->str && strcmp(reply->str, "true") == 0) {
-    freeReplyObject(reply);
-    return NOTIFY;
-  }
-
-  freeReplyObject(reply);
-  return ALLOW;
+  actor->whitelisted = 0;
+  actor->blacklisted = 0;
+  actor->offender = 0;
+  actor->address = NULL;
 }
 
-int repsheet_geoip_lookup(redisContext *context, const char *country)
+void repsheet_score_actor(redisContext *context, actor_t *actor)
 {
-  if (country == NULL) {
-    return ALLOW;
-  }
-
   redisReply *reply;
 
-  reply = redisCommand(context, "SISMEMBER repsheet:countries %s", country);
-  if (reply && reply->integer == 1) {
+  reply = redisCommand(context, "GET %s:repsheet:whitelist", actor->address);
+  if (reply->str && strcmp(reply->str, "true") == 0) {
     freeReplyObject(reply);
-    return NOTIFY;
+    actor->whitelisted = 1;
   }
 
-  freeReplyObject(reply);
-  return ALLOW;
+  reply = redisCommand(context, "GET %s:repsheet:blacklist", actor->address);
+  if (reply->str && strcmp(reply->str, "true") == 0) {
+    freeReplyObject(reply);
+    actor->blacklisted = 1;
+  }
+
+  reply = redisCommand(context, "GET %s:repsheet", actor->address);
+  if (reply->str && strcmp(reply->str, "true") == 0) {
+    freeReplyObject(reply);
+    actor->offender = 1;
+  }
 }
 
 void repsheet_record(redisContext *context, char *timestamp, const char *user_agent, const char *http_method, char *uri, char *arguments, char *ip, int max_length, int expiry)

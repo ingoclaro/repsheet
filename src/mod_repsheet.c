@@ -215,20 +215,24 @@ static char *remote_address(request_rec *r)
   }
 }
 
-static void record(redisContext *context, request_rec *r)
+static int repsheet_mod_security_filter(request_rec *r)
 {
-  apr_time_exp_t start;
-  char           timestamp[50];
-  char           *ip = remote_address(r);
+  if (!config.repsheet_enabled || !config.filter_enabled || !ap_is_initial_req(r)) {
+    return DECLINED;
+  }
 
-  apr_time_exp_gmt(&start, r->request_time);
-  sprintf(timestamp, "%d/%d/%d %d:%d:%d.%d", (start.tm_mon + 1), start.tm_mday, (1900 + start.tm_year), start.tm_hour, start.tm_min, start.tm_sec, start.tm_usec);
+  char *waf_events = (char *)apr_table_get(r->headers_in, "X-WAF-Events");
 
-  repsheet_record(context, timestamp, apr_table_get(r->headers_in, "User-Agent"), r->method, r->uri, r->args, ip, config.redis_max_length, config.redis_expiry);
-}
+  if (!waf_events) {
+    return DECLINED;
+  }
 
-static void process_waf_events(redisContext *context, request_rec *r, char *waf_events)
-{
+  redisContext *context = get_redis_context(r);
+
+  if (context == NULL) {
+    return DECLINED;
+  }
+
   int i, m;
   char **events;
 
@@ -254,132 +258,6 @@ static void process_waf_events(redisContext *context, request_rec *r, char *waf_
     }
     free(events);
   }
-}
-
-static int repsheet_lookup(request_rec *r)
-{
-  if (!config.repsheet_enabled) {
-    return DECLINED;
-  }
-
-  redisContext *context = get_redis_context(r);
-
-  if (context == NULL) {
-    return DECLINED;
-  }
-
-  int action;
-  char *ip = remote_address(r);
-
-  action = repsheet_ip_lookup(context, ip);
-  if (action) {
-    if (action == BLOCK) {
-      ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s %s was blocked by the repsheet", config.prefix, ip);
-      redisFree(context);
-      return HTTP_FORBIDDEN;
-    } else if (action == NOTIFY) {
-      if (config.action == BLOCK) {
-        ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s %s was blocked by the repsheet", config.prefix, ip);
-        redisFree(context);
-        return HTTP_FORBIDDEN;
-      } else {
-        ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s IP Address %s was found on the repsheet. No action taken", config.prefix, ip);
-        apr_table_set(r->headers_in, "X-Repsheet", "true");
-      }
-    }
-  }
-
-  redisFree(context);
-
-  return DECLINED;
-}
-
-static int repsheet_recorder(request_rec *r)
-{
-  if (!config.repsheet_enabled || !config.recorder_enabled || !ap_is_initial_req(r)) {
-    return DECLINED;
-  }
-
-  redisContext *context = get_redis_context(r);
-
-  if (context == NULL) {
-    return DECLINED;
-  }
-
-  record(context, r);
-
-  redisFree(context);
-
-  return DECLINED;
-}
-
-static int repsheet_geoip_filter(request_rec *r)
-{
-  if (!config.repsheet_enabled || !config.geoip_enabled) {
-    return DECLINED;
-  }
-
-  const char* country = apr_table_get(r->headers_in, "GEOIP_COUNTRY_CODE");
-
-  if (country == NULL) {
-    return DECLINED;
-  }
-
-  redisContext *context = get_redis_context(r);
-
-  if (context == NULL) {
-    return DECLINED;
-  }
-
-  int action;
-  char *ip = remote_address(r);
-
-  action = repsheet_geoip_lookup(context, country);
-
-  if (action) {
-    if (action == BLOCK) {
-      ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s %s was blocked by the repsheet", config.prefix, ip);
-      return HTTP_FORBIDDEN;
-    } else if (action == NOTIFY) {
-      if (config.action == BLOCK) {
-        ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s %s was blocked by the repsheet", config.prefix, ip);
-        return HTTP_FORBIDDEN;
-      } else {
-        ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s IP Address %s was on the geoip suspicious country list. No action taken", config.prefix, ip);
-        apr_table_set(r->headers_in, "X-Repsheet", "true");
-      }
-    }
-
-    freeReplyObject(redisCommand(context, "SET %s:repsheet true", ip));
-    if (config.redis_expiry > 0) {
-      freeReplyObject(redisCommand(context, "EXPIRE %s:repsheet %d", ip, config.redis_expiry));
-    }
-  }
-
-  redisFree(context);
-
-  return DECLINED;
-}
-
-static int repsheet_mod_security_filter(request_rec *r)
-{
-  if (!config.repsheet_enabled || !config.filter_enabled || !ap_is_initial_req(r)) {
-    return DECLINED;
-  }
-
-  char *waf_events = (char *)apr_table_get(r->headers_in, "X-WAF-Events");
-
-  if (!waf_events) {
-    return DECLINED;
-  }
-
-  redisContext *context = get_redis_context(r);
-
-  if (context == NULL) {
-    return DECLINED;
-  }
-
-  process_waf_events(context, r, waf_events);
 
   redisFree(context);
 
@@ -402,22 +280,89 @@ static int hook_post_config(apr_pool_t *mp, apr_pool_t *mp_log, apr_pool_t *mp_t
   return OK;
 }
 
+static int repsheet_action(actor_t *actor)
+{
+  if (actor->whitelisted) {
+    return ALLOW;
+  }
+
+  if (actor->blacklisted) {
+    return BLOCK;
+  } else if (actor->offender) {
+    if (config.action == BLOCK) {
+      return BLOCK;
+    } else {
+      return NOTIFY;
+    }
+  }
+
+  return ALLOW;
+}
+
+static void record(redisContext *context, request_rec *r, actor_t *actor)
+{
+  apr_time_exp_t start;
+  char           timestamp[50];
+
+  apr_time_exp_gmt(&start, r->request_time);
+  sprintf(timestamp, "%d/%d/%d %d:%d:%d.%d", (start.tm_mon + 1), start.tm_mday, (1900 + start.tm_year), start.tm_hour, start.tm_min, start.tm_sec, start.tm_usec);
+
+  repsheet_record(context, timestamp, apr_table_get(r->headers_in, "User-Agent"), r->method, r->uri, r->args, actor->address, config.redis_max_length, config.redis_expiry);
+}
+
+static int act_and_record(request_rec *r)
+{
+  if (!config.repsheet_enabled || !ap_is_initial_req(r)) {
+    return DECLINED;
+  }
+
+  redisContext *context = get_redis_context(r);
+
+  if (context == NULL) {
+    return DECLINED;
+  }
+
+  actor_t actor;
+  repsheet_init_actor(&actor);
+
+  actor.address = remote_address(r);
+
+  repsheet_score_actor(context, &actor);
+
+  int action;
+
+  action = repsheet_action(&actor);
+  if (action == BLOCK) {
+    ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s %s was blocked by the repsheet", config.prefix, actor.address);
+    redisFree(context);
+    return HTTP_FORBIDDEN;
+  } else if (action == NOTIFY) {
+    ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s IP Address %s was found on the repsheet. No action taken", config.prefix, actor.address);
+    apr_table_set(r->headers_in, "X-Repsheet", "true");
+  }
+
+  if (config.recorder_enabled) {
+    record(context, r, &actor);
+  }
+
+  redisFree(context);
+
+  return DECLINED;
+}
+
 static void register_hooks(apr_pool_t *pool)
 {
   ap_hook_post_config(hook_post_config, NULL, NULL, APR_HOOK_REALLY_LAST);
-  ap_hook_post_read_request(repsheet_lookup, NULL, NULL, APR_HOOK_LAST);
-  ap_hook_post_read_request(repsheet_recorder, NULL, NULL, APR_HOOK_LAST);
-  ap_hook_post_read_request(repsheet_geoip_filter, NULL, NULL, APR_HOOK_LAST);
+  ap_hook_post_read_request(act_and_record, NULL, NULL, APR_HOOK_LAST);
   ap_hook_fixups(repsheet_mod_security_filter, NULL, NULL, APR_HOOK_REALLY_LAST);
 }
 
-module AP_MODULE_DECLARE_DATA repsheet_module =
-  {
-    STANDARD20_MODULE_STUFF,
-    NULL,                /* Per-directory configuration handler */
-    NULL,                /* Merge handler for per-directory configurations */
-    NULL,                /* Per-server configuration handler */
-    NULL,                /* Merge handler for per-server configurations */
-    repsheet_directives, /* Any directives we may have for httpd */
-    register_hooks       /* Our hook registering function */
-  };
+module AP_MODULE_DECLARE_DATA repsheet_module = {
+  STANDARD20_MODULE_STUFF,
+  NULL,                /* Per-directory configuration handler */
+  NULL,                /* Merge handler for per-directory configurations */
+  NULL,                /* Per-server configuration handler */
+  NULL,                /* Merge handler for per-server configurations */
+  repsheet_directives, /* Any directives we may have for httpd */
+  register_hooks       /* Our hook registering function */
+};
