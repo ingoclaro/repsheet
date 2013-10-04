@@ -44,6 +44,8 @@ if [ ! -d "vendor/httpd-$APACHE_VERSION" ]; then
         --enable-proxy-http --enable-proxy-ftp \
         --enable-dbd > install.log 2>&1
     printf "."
+    sed -i.bak 's/sc->proxy->protocol != SSL_PROTOCOL_SSLV2 &&/\/\/sc->proxy->protocol != SSL_PROTOCOL_SSLV2 &&/' modules/ssl/ssl_engine_io.c
+    printf "."
     make >> install.log 2>&1
     printf "."
     make install >> install.log 2>&1
