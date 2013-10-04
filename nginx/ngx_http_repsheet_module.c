@@ -84,7 +84,6 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
   r->main->internal = 1;
 
   redisContext *context = get_redis_context(r);
-  redisReply *reply;
 
   if (context == NULL) {
     return NGX_DECLINED;
