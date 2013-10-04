@@ -4,11 +4,11 @@ test_runner_SOURCES = proxy_test.c \
                       mod_security_test.c \
                       repsheet_test.c \
                       test_runner.c \
-                      $(top_builddir)/src/proxy.c \
-                      $(top_builddir)/src/proxy.h \
-                      $(top_builddir)/src/mod_security.c \
-                      $(top_builddir)/src/mod_security.h \
-                      $(top_builddir)/src/repsheet.c \
-                      $(top_builddir)/src/repsheet.h
+                      ../src/proxy.c \
+                      ../src/proxy.h \
+                      ../src/mod_security.c \
+                      ../src/mod_security.h \
+                      ../src/repsheet.c \
+                      ../src/repsheet.h
 test_runner_CFLAGS = $(CHECK_CFLAGS)
 test_runner_LDADD = $(CHECK_LIBS) -lpcre -lhiredis
