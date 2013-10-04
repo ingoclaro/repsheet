@@ -66,7 +66,6 @@ get_redis_context(ngx_http_request_t *r)
   return context;
 }
 
-
 static ngx_int_t
 ngx_http_repsheet_handler(ngx_http_request_t *r)
 {
@@ -91,31 +90,37 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
     return NGX_DECLINED;
   }
 
-  int action;
-  ngx_str_t address = r->connection->addr_text;
+  actor_t actor;
+  repsheet_init_actor(&actor);
+  actor.address = (char *)r->connection->addr_text.data;
+  repsheet_score_actor(context, &actor);
 
-  action = repsheet_ip_lookup(context, (char*)address.data);
+  if (actor.whitelisted) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s Suspect %s was allowed by the repsheet whitelist", "[repsheet]", actor.address);
+    redisFree(context);
+    return NGX_DECLINED;
+  }
 
-  if (action) {
-    if (action == BLOCK) {
-      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was blocked by the repsheet", "[repsheet]", address.data);
+  if (actor.blacklisted) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was blocked by the repsheet", "[repsheet]", actor.address);
+    redisFree(context);
+    return NGX_HTTP_FORBIDDEN;
+  }
+
+  if (actor.offender) {
+    if (conf->action == REPSHEET_ACTION_BLOCK) {
+      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was blocked by the repsheet", "[repsheet]", actor.address);
       redisFree(context);
       return NGX_HTTP_FORBIDDEN;
-    } else if (action == NOTIFY) {
-      if (conf->action == REPSHEET_ACTION_BLOCK) {
-	ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was blocked by the repsheet", "[repsheet]", address.data);
-        redisFree(context);
-        return NGX_HTTP_FORBIDDEN;
-      } else {
-	ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s IP Address %s was found on the repsheet. No action taken", "[repsheet]", address.data);
-	ngx_table_elt_t *h;
-	ngx_str_t label = ngx_string("X-Repsheet");
-	ngx_str_t val = ngx_string("true");
-	h = ngx_list_push(&r->headers_in.headers);
-	h->hash = 1;
-	h->key = label;
-	h->value = val;
-      }
+    }  else {
+      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s IP Address %s was found on the repsheet. No action taken", "[repsheet]", actor.address);
+      ngx_table_elt_t *h;
+      ngx_str_t label = ngx_string("X-Repsheet");
+      ngx_str_t val = ngx_string("true");
+      h = ngx_list_push(&r->headers_in.headers);
+      h->hash = 1;
+      h->key = label;
+      h->value = val;
     }
   }
 
