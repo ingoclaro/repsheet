@@ -159,14 +159,6 @@ static ngx_command_t ngx_http_repsheet_commands[] = {
     NULL
   },
   {
-    ngx_string("repsheet_recorder"),
-    NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_flag_slot,
-    NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(repsheet_loc_conf_t, record),
-    NULL
-  },
-  {
     ngx_string("repsheet_proxy_headers"),
     NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
     ngx_conf_set_flag_slot,
@@ -182,7 +174,6 @@ static ngx_command_t ngx_http_repsheet_commands[] = {
     offsetof(repsheet_loc_conf_t, action),
     &ngx_http_repsheet_action_mask
   },
-
   {
     ngx_string("repsheet_redis_host"),
     NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
@@ -205,22 +196,6 @@ static ngx_command_t ngx_http_repsheet_commands[] = {
     ngx_conf_set_num_slot,
     NGX_HTTP_MAIN_CONF_OFFSET,
     offsetof(repsheet_main_conf_t, redis.timeout),
-    NULL
-  },
-  {
-    ngx_string("repsheet_redis_max_length"),
-    NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_num_slot,
-    NGX_HTTP_MAIN_CONF_OFFSET,
-    offsetof(repsheet_main_conf_t, redis.max_length),
-    NULL
-  },
-  {
-    ngx_string("repsheet_redis_expiry"),
-    NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_num_slot,
-    NGX_HTTP_MAIN_CONF_OFFSET,
-    offsetof(repsheet_main_conf_t, redis.expiry),
     NULL
   },
 
