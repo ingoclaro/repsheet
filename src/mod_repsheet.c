@@ -202,16 +202,22 @@ static redisContext *get_redis_context(request_rec *r)
 
 static char *remote_address(request_rec *r)
 {
+# if AP_SERVER_MAJORVERSION_NUMBER == 2 && AP_SERVER_MINORVERSION_NUMBER == 4
+  char *connected_ip = r->useragent_ip;
+# else
+  char *connected_ip = r->connection->remote_ip;
+#endif
+
   if (config.proxy_headers_enabled) {
     char *address = process_headers((char*)apr_table_get(r->headers_in, "X-Forwarded-For"));
 
     if (address == NULL) {
-      return r->connection->remote_ip;
+      return connected_ip;
     }
 
     return address;
   } else {
-    return r->connection->remote_ip;
+    return connected_ip;
   }
 }
 
