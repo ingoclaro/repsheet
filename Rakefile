@@ -57,7 +57,7 @@ namespace :repsheet do
 end
 
 desc "Run the integration tests against Apache"
-task :apache => ["repsheet:bootstrap", "apache:compile", "apache:start", "redis:start", :integration, "apache:stop", "redis:stop"]
+task :apache => ["repsheet:bootstrap", "apache:compile", "apache:start", :integration, "apache:stop"]
 
 desc "Run the integration tests against nginx"
 task :nginx => ["repsheet:bootstrap", "nginx:compile", "nginx:start", "redis:start", :integration, "nginx:stop", "redis:stop"]

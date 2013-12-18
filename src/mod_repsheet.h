@@ -22,8 +22,10 @@ typedef struct {
   int recorder_enabled;
   int filter_enabled;
   int proxy_headers_enabled;
-  int geoip_enabled;
   int action;
+  int geoip_enabled;
+  int modsecurity_anomaly_threshold;
+
   const char *prefix;
 
   const char *redis_host;

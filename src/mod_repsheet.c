@@ -164,12 +164,25 @@ const char *repsheet_set_action(cmd_parms *cmd, void *cfg, const char *arg)
   }
 }
 
+const char *repsheet_set_modsecurity_anomaly_threshold(cmd_parms *cmd, void *cfg, const char *arg)
+{
+  int threshold = strtol(arg, 0, 10);
+
+  if (threshold > 0) {
+    config.modsecurity_anomaly_threshold = threshold;
+    return NULL;
+  } else {
+    return "[ModRepsheet] - The ModSecurity anomaly threshold directive must be a number";
+  }
+}
+
 static const command_rec repsheet_directives[] =
   {
     AP_INIT_TAKE1("repsheetEnabled",         repsheet_set_enabled,               NULL, RSRC_CONF, "Enable or disable mod_repsheet"),
     AP_INIT_TAKE1("repsheetRecorder",        repsheet_set_recorder_enabled,      NULL, RSRC_CONF, "Enable or disable repsheet recorder"),
     AP_INIT_TAKE1("repsheetFilter",          repsheet_set_filter_enabled,        NULL, RSRC_CONF, "Enable or disable repsheet ModSecurity filter"),
     AP_INIT_TAKE1("repsheetGeoIP",           repsheet_set_geoip_enabled,         NULL, RSRC_CONF, "Enable or disable repsheet GeoIP filter"),
+    AP_INIT_TAKE1("repsheetAnomalyThreshold",repsheet_set_modsecurity_anomaly_threshold, NULL, RSRC_CONF, "Set block threshold"),
     AP_INIT_TAKE1("repsheetProxyHeaders",    repsheet_set_proxy_headers_enabled, NULL, RSRC_CONF, "Enable or disable proxy header scanning"),
     AP_INIT_TAKE1("repsheetAction",          repsheet_set_action,                NULL, RSRC_CONF, "Set the action"),
     AP_INIT_TAKE1("repsheetPrefix",          repsheet_set_prefix,                NULL, RSRC_CONF, "Set the log prefix"),
@@ -225,6 +238,14 @@ static int repsheet_mod_security_filter(request_rec *r)
 {
   if (!config.repsheet_enabled || !config.filter_enabled || !ap_is_initial_req(r)) {
     return DECLINED;
+  }
+
+  char *x_waf_score = (char *)apr_table_get(r->headers_in, "X-WAF-Score");
+  int anomaly_score = modsecurity_total(x_waf_score);
+  if (anomaly_score >= config.modsecurity_anomaly_threshold) {
+    //TODO: Blacklist when this is hit
+    ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s %s was blocked by Repsheet. ModSecurity anomaly score was %d", config.prefix, remote_address(r), anomaly_score);
+    return HTTP_FORBIDDEN;
   }
 
   char *waf_events = (char *)apr_table_get(r->headers_in, "X-WAF-Events");

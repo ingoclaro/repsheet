@@ -66,3 +66,22 @@ void process_mod_security_headers(char *waf_events, char *events[])
     offset = ovector[1];
   }
 }
+
+int modsecurity_total(char *waf_score)
+{
+  int offset = 0;
+  int match, error_offset;
+  int ovector[100];
+
+  const char *event;
+  const char *error;
+
+  pcre *regex;
+
+  regex = pcre_compile("\\d+;", PCRE_MULTILINE, &error, &error_offset, 0);
+
+  match = pcre_exec(regex, 0, waf_score, strlen(waf_score), offset, 0, ovector, sizeof(ovector));
+  pcre_get_substring(waf_score, ovector, match, 0, &(event));
+
+  return strtol(event, 0, 10);
+}

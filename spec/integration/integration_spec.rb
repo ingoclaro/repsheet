@@ -117,6 +117,10 @@ describe "Integration Specs" do
 
       @redis.get("1.1.1.1:repsheet").should be_true
     end
+
+    it "Blocks requests that exceed the anomaly threshold" do
+      Curl.get("http://127.0.0.1:8888?../../<script>alert('hi')</script>####################").response_code.should == 403
+    end
   end
 
   describe "GeoIP Blacklisting" do
