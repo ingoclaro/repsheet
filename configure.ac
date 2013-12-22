@@ -1,5 +1,5 @@
 AC_PREREQ(2.61)
-AC_INIT([repsheet], [0.0.2], [aaron@aaronbedra.com])
+AC_INIT([repsheet], [1.0.0], [aaron@aaronbedra.com])
 AC_CONFIG_HEADERS([config.h])
 
 AM_INIT_AUTOMAKE([-Wall foreign subdir-objects])
