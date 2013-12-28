@@ -45,3 +45,4 @@ test/test_runner
 test/*.o
 test/*.trs
 test/test_runner.log
+.bundle

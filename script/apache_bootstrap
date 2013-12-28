@@ -9,7 +9,7 @@ RESET="\033[0;m"
 DIR=`pwd`
 BUILDDIR=$DIR/build
 APACHE_DIR=apache
-APACHE_VERSION=2.2.25
+APACHE_VERSION=2.2.26
 
 echo $DIR
 
@@ -25,18 +25,17 @@ fi
 if [ ! -d "vendor/httpd-$APACHE_VERSION" ]; then
     printf "$BLUE * $YELLOW Installing Apache $APACHE_VERSION$RESET "
     pushd vendor > /dev/null 2>&1
-    curl -s -O http://mirror.tcpdiag.net/apache//httpd/httpd-2.2.25.tar.gz
+    curl -s -O http://apache.cs.utah.edu//httpd/httpd-2.2.26.tar.gz
     tar xzf httpd-$APACHE_VERSION.tar.gz
     printf "."
     pushd httpd-$APACHE_VERSION > /dev/null 2>&1
     ./configure --prefix=$BUILDDIR/$APACHE_DIR \
+        --with-included-apr \
         --exec-prefix=$BUILDDIR/$APACHE_DIR \
         --enable-modules=all \
         --enable-mods-shared=all \
         --enable-so \
         --enable-suexec \
-        --enable-ldap \
-        --enable-authnz-ldap \
         --enable-cache --enable-disk-cache --enable-mem-cache --enable-file-cache \
         --enable-ssl --with-ssl \
         --enable-deflate --enable-cgid \
@@ -70,13 +69,18 @@ if [ ! -d "vendor/modsecurity-apache_2.7.4" ]; then
     tar xzf modsecurity-apache_2.7.4.tar.gz
     printf "."
     pushd modsecurity-apache_2.7.4 > /dev/null 2>&1
-    ./configure --prefix=$BUILDDIR/$APACHE_DIR --exec-prefix=$BUILDDIR/$APACHE_DIR > install.log 2>&1
+    ./configure --prefix=$BUILDDIR/$APACHE_DIR \
+        --exec-prefix=$BUILDDIR/$APACHE_DIR \
+        --libdir=$BUILDDIR/$APACHE_DIR/lib \
+        --with-apxs=$BUILDDIR/$APACHE_DIR/bin/apxs \
+        --with-apr=$BUILDDIR/$APACHE_DIR/bin/apr-1-config \
+        --with-apu=$BUILDDIR/$APACHE_DIR/bin/apu-1-config > install.log 2>&1
     printf "."
     make >> install.log 2>&1
     printf "."
     make install >> install.log 2>&1
     printf "."
-    cp $BUILDDIR/$APACHE_DIR/lib/mod_security2.so $BUILDDIR/$APACHE_DIR/modules
+    #cp $BUILDDIR/$APACHE_DIR/lib/mod_security2.so $BUILDDIR/$APACHE_DIR/modules
     popd > /dev/null 2>&1
     popd > /dev/null 2>&1
     mkdir build/apache/conf/modsecurity
@@ -97,6 +101,7 @@ LoadModule security2_module modules/mod_security2.so
   RepsheetProxyHeaders On
   RepsheetAction Notify
   RepsheetPrefix [repsheet]
+  RepsheetAnomalyThreshold 20
   RepsheetRedisTimeout 5
   RepsheetRedisHost localhost
   RepsheetRedisPort 6379
@@ -127,7 +132,7 @@ if [ ! -d "vendor/geoip" ]; then
     popd > /dev/null 2>&1
     popd > /dev/null 2>&1
 
-    sed -i.bak '269s/.*/LogFormat "%h %l %u %t \\"%r\\" %>s %b \\"%{GEOIP_COUNTRY_CODE}e %{GEOIP_CITY}e %{GEOIP_REGION_NAME}e %{GEOIP_POSTAL_CODE}e %{GEOIP_LATITUDE}e %{GEOIP_LONGITUDE}e\\"" common/' build/apache/conf/httpd.conf
+    sed -i.bak '268s/.*/LogFormat "%h %l %u %t \\"%r\\" %>s %b \\"%{GEOIP_COUNTRY_CODE}e %{GEOIP_CITY}e %{GEOIP_REGION_NAME}e %{GEOIP_POSTAL_CODE}e %{GEOIP_LATITUDE}e %{GEOIP_LONGITUDE}e\\"" common/' build/apache/conf/httpd.conf
 
     cat <<EOF >> build/apache/conf/httpd.conf
 
