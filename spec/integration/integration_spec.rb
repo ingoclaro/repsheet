@@ -30,11 +30,6 @@ describe "Integration Specs" do
       @redis.set("127.0.0.1:repsheet:whitelist", "true")
       Curl.get("http://127.0.0.1:8888").response_code.should == 200
     end
-
-    it "Returns a 200 response if the actor is on the repsheet but Notify is the default action" do
-      @redis.set("127.0.0.1:repsheet", "true")
-      Curl.get("http://127.0.0.1:8888").response_code.should == 200
-    end
   end
 
   describe "Proxy Filtering" do

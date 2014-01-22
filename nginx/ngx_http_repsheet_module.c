@@ -6,15 +6,6 @@
 
 #include "../src/repsheet.h"
 
-#define REPSHEET_ACTION_NOTIFY  0
-#define REPSHEET_ACTION_BLOCK   1
-
-static ngx_conf_bitmask_t ngx_http_repsheet_action_mask[] = {
-  { ngx_string("notify"), REPSHEET_ACTION_NOTIFY },
-  { ngx_string("block"), REPSHEET_ACTION_BLOCK },
-  { ngx_null_string, 0 }
-};
-
 typedef struct {
   ngx_str_t  host;
   ngx_uint_t port;
@@ -29,12 +20,10 @@ typedef struct {
 
 } repsheet_main_conf_t;
 
-
 typedef struct {
   ngx_flag_t enabled;
   ngx_flag_t record;
   ngx_flag_t proxy_headers;
-  ngx_uint_t action;
 
 } repsheet_loc_conf_t;
 
@@ -95,32 +84,26 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
   repsheet_score_actor(context, &actor);
 
   if (actor.whitelisted) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s Suspect %s was allowed by the repsheet whitelist", "[repsheet]", actor.address);
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was allowed by the repsheet whitelist", "[repsheet]", actor.address);
     redisFree(context);
     return NGX_DECLINED;
   }
 
   if (actor.blacklisted) {
-    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was blocked by the repsheet", "[repsheet]", actor.address);
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was blocked by the repsheet blacklist", "[repsheet]", actor.address);
     redisFree(context);
     return NGX_HTTP_FORBIDDEN;
   }
 
   if (actor.offender) {
-    if (conf->action == REPSHEET_ACTION_BLOCK) {
-      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was blocked by the repsheet", "[repsheet]", actor.address);
-      redisFree(context);
-      return NGX_HTTP_FORBIDDEN;
-    }  else {
-      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s IP Address %s was found on the repsheet. No action taken", "[repsheet]", actor.address);
-      ngx_table_elt_t *h;
-      ngx_str_t label = ngx_string("X-Repsheet");
-      ngx_str_t val = ngx_string("true");
-      h = ngx_list_push(&r->headers_in.headers);
-      h->hash = 1;
-      h->key = label;
-      h->value = val;
-    }
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s %s was found on the repsheet", "[repsheet]", actor.address);
+    ngx_table_elt_t *h;
+    ngx_str_t label = ngx_string("X-Repsheet");
+    ngx_str_t val = ngx_string("true");
+    h = ngx_list_push(&r->headers_in.headers);
+    h->hash = 1;
+    h->key = label;
+    h->value = val;
   }
 
   redisFree(context);
@@ -164,14 +147,6 @@ static ngx_command_t ngx_http_repsheet_commands[] = {
     NGX_HTTP_LOC_CONF_OFFSET,
     offsetof(repsheet_loc_conf_t, proxy_headers),
     NULL
-  },
-  {
-    ngx_string("repsheet_action"),
-    NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
-    ngx_conf_set_bitmask_slot,
-    NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(repsheet_loc_conf_t, action),
-    &ngx_http_repsheet_action_mask
   },
   {
     ngx_string("repsheet_redis_host"),
@@ -248,7 +223,6 @@ ngx_http_repsheet_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
   ngx_conf_merge_value(conf->enabled, prev->enabled, 0);
   ngx_conf_merge_value(conf->record, prev->record, 0);
   ngx_conf_merge_value(conf->proxy_headers, prev->proxy_headers, 0);
-  ngx_conf_merge_bitmask_value(conf->action, prev->action, 0);
 
   return NGX_CONF_OK;
 }
