@@ -1,4 +1,4 @@
-# Repsheet [![Build Status](https://secure.travis-ci.org/repsheet/repsheet.png)](http://travis-ci.org/repsheet/repsheet?branch=master)
+# Repsheet [![Build Status](https://secure.travis-ci.org/repsheet/repsheet.png)](http://travis-ci.org/repsheet/repsheet?branch=master) ![Coverity Status](https://scan.coverity.com/projects/385/badge.svg?flat=1)
 
 > 
 > **noun**  *Slang.*  
