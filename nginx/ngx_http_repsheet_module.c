@@ -55,6 +55,26 @@ get_redis_context(ngx_http_request_t *r)
   return context;
 }
 
+static char *
+real_address(ngx_http_request_t *r)
+{
+  ngx_addr_t addr;
+  ngx_array_t *xfwd;
+
+  xfwd = &r->headers_in.x_forwarded_for;
+
+  if (xfwd->elts == NULL) {
+    return (char *)r->connection->addr_text.data;
+  }
+
+  (void) ngx_http_get_forwarded_addr(r, &addr, xfwd, NULL, NULL, NULL);
+
+  //  ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s entry : %s", "[repsheet]", addr.name);
+
+  return (char *)r->connection->addr_text.data;
+}
+
+
 static ngx_int_t
 ngx_http_repsheet_handler(ngx_http_request_t *r)
 {
@@ -80,7 +100,14 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
 
   actor_t actor;
   repsheet_init_actor(&actor);
-  actor.address = (char *)r->connection->addr_text.data;
+  actor.address = real_address(r);
+
+  if (actor.address) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s address : %s", "[repsheet]", actor.address);
+  } else {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s Could not fetch address", "[repsheet]");
+  }
+
   repsheet_score_actor(context, &actor);
 
   if (actor.whitelisted) {
