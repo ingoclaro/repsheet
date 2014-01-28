@@ -55,25 +55,41 @@ get_redis_context(ngx_http_request_t *r)
   return context;
 }
 
-static char *
-real_address(ngx_http_request_t *r)
+void
+real_address(ngx_http_request_t *r, actor_t *actor)
 {
-  ngx_addr_t addr;
-  ngx_array_t *xfwd;
+  in_addr_t addr;
+  ngx_table_elt_t *xfwd;
+  u_char *p;
+  int length;
 
-  xfwd = &r->headers_in.x_forwarded_for;
+  xfwd = r->headers_in.x_forwarded_for;
 
-  if (xfwd->elts == NULL) {
-    return (char *)r->connection->addr_text.data;
+  if (xfwd != NULL && xfwd->value.data != NULL) {
+    /* Get the first value from the XFF list.
+     * Note that xfwd->value.data already has any extra whitespace removed.
+     */
+    for (p=xfwd->value.data; p < (xfwd->value.data + xfwd->value.len); p++) {
+      if (*p == ' ' || *p == ',') {
+        break;
+      }
+    }
+
+    length = p - xfwd->value.data;
+
+    /* Validate it is a valid IP */
+    addr = ngx_inet_addr(xfwd->value.data, length);
+    if (addr != INADDR_NONE) {
+      strncpy(actor->temp_address, (char *)xfwd->value.data, length);
+      actor->temp_address[length] = '\0';
+      actor->address = actor->temp_address;
+      return;
+    }
   }
 
-  (void) ngx_http_get_forwarded_addr(r, &addr, xfwd, NULL, NULL, NULL);
-
-  //  ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s entry : %s", "[repsheet]", addr.name);
-
-  return (char *)r->connection->addr_text.data;
+  /* Return the client IP when the code does not return above. */
+  actor->address = (char *)r->connection->addr_text.data;
 }
-
 
 static ngx_int_t
 ngx_http_repsheet_handler(ngx_http_request_t *r)
@@ -100,7 +116,7 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
 
   actor_t actor;
   repsheet_init_actor(&actor);
-  actor.address = real_address(r);
+  real_address(r, &actor);
 
   if (actor.address) {
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s address : %s", "[repsheet]", actor.address);

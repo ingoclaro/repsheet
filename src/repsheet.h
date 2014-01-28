@@ -11,6 +11,7 @@
 
 typedef struct actor_t {
   char *address;
+  char temp_address[64];
   int offender;
   int blacklisted;
   int whitelisted;
