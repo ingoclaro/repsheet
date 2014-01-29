@@ -7,7 +7,6 @@ void repsheet_init_actor(actor_t *actor)
   actor->blacklisted = 0;
   actor->offender = 0;
   actor->address = NULL;
-  actor->temp_address[0] = '\0';
 }
 
 void repsheet_score_actor(redisContext *context, actor_t *actor)

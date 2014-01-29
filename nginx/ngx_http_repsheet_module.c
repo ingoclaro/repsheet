@@ -55,45 +55,10 @@ get_redis_context(ngx_http_request_t *r)
   return context;
 }
 
-void
-real_address(ngx_http_request_t *r, actor_t *actor)
-{
-  in_addr_t addr;
-  ngx_table_elt_t *xfwd;
-  u_char *p;
-  int length;
-
-  xfwd = r->headers_in.x_forwarded_for;
-
-  if (xfwd != NULL && xfwd->value.data != NULL) {
-    /* Get the first value from the XFF list.
-     * Note that xfwd->value.data already has any extra whitespace removed.
-     */
-    for (p=xfwd->value.data; p < (xfwd->value.data + xfwd->value.len); p++) {
-      if (*p == ' ' || *p == ',') {
-        break;
-      }
-    }
-
-    length = p - xfwd->value.data;
-
-    /* Validate it is a valid IP */
-    addr = ngx_inet_addr(xfwd->value.data, length);
-    if (addr != INADDR_NONE) {
-      strncpy(actor->temp_address, (char *)xfwd->value.data, length);
-      actor->temp_address[length] = '\0';
-      actor->address = actor->temp_address;
-      return;
-    }
-  }
-
-  /* Return the client IP when the code does not return above. */
-  actor->address = (char *)r->connection->addr_text.data;
-}
-
 static ngx_int_t
 ngx_http_repsheet_handler(ngx_http_request_t *r)
 {
+  char temp_address[INET_ADDRSTRLEN];
   repsheet_loc_conf_t *conf;
 
   conf = ngx_http_get_module_loc_conf(r, ngx_http_repsheet_module);
@@ -116,7 +81,32 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
 
   actor_t actor;
   repsheet_init_actor(&actor);
-  real_address(r, &actor);
+  actor.address = (char *)r->connection->addr_text.data;
+
+  ngx_table_elt_t *xfwd;
+  xfwd = r->headers_in.x_forwarded_for;
+  if (xfwd != NULL && xfwd->value.data != NULL) {
+    in_addr_t addr;
+    int length;
+    u_char *p;
+
+    /* Get the first value from the XFF list.
+     * Note that xfwd->value.data already has any extra whitespace removed.
+     */
+    for (p=xfwd->value.data; p < (xfwd->value.data + xfwd->value.len); p++) {
+      if (*p == ' ' || *p == ',')
+        break;
+    }
+
+    /* Validate it is a valid IP */
+    length = p - xfwd->value.data;
+    addr = ngx_inet_addr(xfwd->value.data, length);
+    if (addr != INADDR_NONE && length <= INET_ADDRSTRLEN) {
+      strncpy(temp_address, (char *)xfwd->value.data, length);
+      temp_address[length] = '\0';
+      actor.address = temp_address;
+    }
+  }
 
   if (actor.address) {
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s address : %s", "[repsheet]", actor.address);
