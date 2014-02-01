@@ -81,7 +81,11 @@ int modsecurity_total(char *waf_score)
   regex = pcre_compile("\\d+;", PCRE_MULTILINE, &error, &error_offset, 0);
 
   match = pcre_exec(regex, 0, waf_score, strlen(waf_score), offset, 0, ovector, sizeof(ovector));
-  pcre_get_substring(waf_score, ovector, match, 0, &(event));
 
-  return strtol(event, 0, 10);
+  if (match && match > 0) {
+    pcre_get_substring(waf_score, ovector, match, 0, &(event));
+    return strtol(event, 0, 10);
+  }
+
+  return 0;
 }
