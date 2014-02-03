@@ -1,3 +1,4 @@
+#include <nginx.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
@@ -60,6 +61,7 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
 {
   char temp_address[INET_ADDRSTRLEN];
   repsheet_loc_conf_t *conf;
+  int length;
 
   conf = ngx_http_get_module_loc_conf(r, ngx_http_repsheet_module);
 
@@ -81,13 +83,21 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
 
   actor_t actor;
   repsheet_init_actor(&actor);
-  actor.address = (char *)r->connection->addr_text.data;
 
-  ngx_table_elt_t *xfwd;
+  ngx_table_elt_t *xfwd = NULL;
+
+#if (nginx_version >= 1004000)
+  ngx_array_t *ngx_array = &r->headers_in.x_forwarded_for;
+  if (ngx_array != NULL && ngx_array->nelts > 0) {
+     ngx_table_elt_t **first_elt = ngx_array->elts;
+     xfwd = first_elt[0];
+  }
+#else 
   xfwd = r->headers_in.x_forwarded_for;
+#endif
+
   if (xfwd != NULL && xfwd->value.data != NULL) {
     in_addr_t addr;
-    int length;
     u_char *p;
 
     /* Get the first value from the XFF list.
@@ -107,6 +117,14 @@ ngx_http_repsheet_handler(ngx_http_request_t *r)
       actor.address = temp_address;
     }
   }
+
+  if (actor.address == NULL) {
+    length = r->connection->addr_text.len;
+    strncpy(temp_address, (char *)r->connection->addr_text.data, length);
+    temp_address[length] = '\0';
+    actor.address = temp_address;
+  }
+
 
   if (actor.address) {
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "%s address : %s", "[repsheet]", actor.address);
