@@ -240,23 +240,25 @@ static int repsheet_mod_security_filter(request_rec *r)
     return DECLINED;
   }
 
+  redisContext *context = get_redis_context(r);
+
+  if (context == NULL) {
+    return DECLINED;
+  }
+
   char *x_waf_score = (char *)apr_table_get(r->headers_in, "X-WAF-Score");
   int anomaly_score = modsecurity_total(x_waf_score);
   if (anomaly_score >= config.modsecurity_anomaly_threshold) {
-    //TODO: Blacklist when this is hit
-    ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s %s was blocked by Repsheet. ModSecurity anomaly score was %d", config.prefix, remote_address(r), anomaly_score);
+    char *actor = remote_address(r);
+    blacklist_and_expire(context, actor, config.redis_expiry);
+    ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s %s was blacklisted by Repsheet. ModSecurity anomaly score was %d", config.prefix, actor, anomaly_score);
+    redisFree(context);
     return HTTP_FORBIDDEN;
   }
 
   char *waf_events = (char *)apr_table_get(r->headers_in, "X-WAF-Events");
 
   if (!waf_events) {
-    return DECLINED;
-  }
-
-  redisContext *context = get_redis_context(r);
-
-  if (context == NULL) {
     return DECLINED;
   }
 

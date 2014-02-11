@@ -85,3 +85,10 @@ void repsheet_record(redisContext *context, char *timestamp, const char *user_ag
     freeReplyObject(redisCommand(context, "EXPIRE %s:requests %d", ip, expiry));
   }
 }
+
+void blacklist_and_expire(redisContext *context, char *actor, int expiry)
+{
+  redisCommand(context, "SET %s:repsheet:blacklist true", actor);
+  redisCommand(context, "EXPIRE %s:repsheet:blacklist %d", actor, expiry);
+  redisCommand(context, "SADD repsheet:blacklist:history %s", actor);
+}

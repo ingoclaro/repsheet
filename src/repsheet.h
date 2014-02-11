@@ -19,5 +19,6 @@ typedef struct actor_t {
 void repsheet_init_actor(actor_t *actor);
 void repsheet_score_actor(redisContext *context, actor_t *actor);
 void repsheet_record(redisContext *context, char *timestamp, const char *user_agent, const char *http_method, char* uri, char *arguments, char *ip, int max_length, int expiry);
+void blacklist_and_expire(redisContext *context, char *actor, int expiry);
 
 #endif
