@@ -86,9 +86,10 @@ void repsheet_record(redisContext *context, char *timestamp, const char *user_ag
   }
 }
 
-void blacklist_and_expire(redisContext *context, char *actor, int expiry)
+void blacklist_and_expire(redisContext *context, char *actor, int expiry, char *reason)
 {
   redisCommand(context, "SET %s:repsheet:blacklist true", actor);
   redisCommand(context, "EXPIRE %s:repsheet:blacklist %d", actor, expiry);
+  redisCommand(context, "SETEX %s:repsheet:blacklist:reason %d %s", actor, expiry, reason);
   redisCommand(context, "SADD repsheet:blacklist:history %s", actor);
 }

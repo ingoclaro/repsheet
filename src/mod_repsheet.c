@@ -250,7 +250,7 @@ static int repsheet_mod_security_filter(request_rec *r)
   int anomaly_score = modsecurity_total(x_waf_score);
   if (anomaly_score >= config.modsecurity_anomaly_threshold) {
     char *actor = remote_address(r);
-    blacklist_and_expire(context, actor, config.redis_expiry);
+    blacklist_and_expire(context, actor, config.redis_expiry, "ModSecurity Anomaly Threshold");
     ap_log_error(APLOG_MARK, APLOG_ERR, 0, r->server, "%s %s was blacklisted by Repsheet. ModSecurity anomaly score was %d", config.prefix, actor, anomaly_score);
     redisFree(context);
     return HTTP_FORBIDDEN;

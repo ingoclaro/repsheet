@@ -121,6 +121,11 @@ describe "Integration Specs" do
       Curl.get("http://127.0.0.1:8888?../../<script>alert('hi')</script>####################")
       @redis.get("127.0.0.1:repsheet:blacklist").should be_true
     end
+
+    it "Sets a reason when blacklisting actors that exceed the anomaly threshold" do
+      Curl.get("http://127.0.0.1:8888?../../<script>alert('hi')</script>####################")
+      @redis.get("127.0.0.1:repsheet:blacklist:reason").should == "ModSecurity Anomaly Threshold"
+    end
   end
 
   describe "GeoIP Blacklisting" do
