@@ -1,5 +1,9 @@
 #!/bin/bash
 
+source script/apache/modsecurity.sh
+source script/apache/geoip.sh
+source script/apache/repsheet.sh
+
 DIR=$(pwd)
 BUILDDIR=$DIR/build
 APACHE_24_DIR=apache24

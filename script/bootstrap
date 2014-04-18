@@ -1,9 +1,6 @@
 #!/bin/bash
 
 source script/apache.sh
-source script/modsecurity.sh
-source script/geoip.sh
-source script/repsheet.sh
 source script/nginx.sh
 
 set -o nounset

@@ -17,7 +17,7 @@ namespace :apache do
   end
 
   task :compile do
-    sh "script/apache_compile"
+    sh "make apache_local"
   end
 end
 
@@ -38,7 +38,7 @@ end
 
 namespace :repsheet do
   task :bootstrap do
-    unless Dir.exists?("build")
+    unless Dir.exists?("build") and Dir.exists?("vendor")
       puts "Run script/bootstrap to setup local development environment"
       exit(1)
     end
