@@ -8,56 +8,56 @@ RESET="\033[0;m"
 
 DIR=`pwd`
 BUILDDIR=$DIR/build
-APACHE_DIR=apache
-APACHE_VERSION=2.4.9
+APACHE_24_DIR=apache24
+APACHE_24_VERSION=2.4.9
 
 echo $DIR
 
 if [ ! -d $BUILDDIR ]; then
     mkdir $BUILDDIR > /dev/null 2>&1
-    mkdir $BUILDDIR/$APACHE_DIR > /dev/null 2>&1
+    mkdir $BUILDDIR/$APACHE_24_DIR > /dev/null 2>&1
 fi
 
 if [ ! -d "vendor" ]; then
     mkdir vendor > /dev/null 2>&1
 fi
 
-if [ ! -d "vendor/httpd-$APACHE_VERSION" ]; then
-    printf "$BLUE * $YELLOW Installing Apache $APACHE_VERSION$RESET "
+if [ ! -d "vendor/httpd-$APACHE_24_VERSION" ]; then
+    printf "$BLUE * $YELLOW Installing Apache $APACHE_24_VERSION$RESET "
     pushd vendor > /dev/null 2>&1
     curl -s -O http://mirror.symnds.com/software/Apache//httpd/httpd-2.4.9.tar.gz
-    tar xzf httpd-$APACHE_VERSION.tar.gz
+    tar xzf httpd-$APACHE_24_VERSION.tar.gz
     printf "."
-    pushd httpd-$APACHE_VERSION > /dev/null 2>&1
-    ./configure --prefix=$BUILDDIR/$APACHE_DIR \
-        --exec-prefix=$BUILDDIR/$APACHE_DIR    \
-        --enable-modules=all                   \
-        --enable-mods-shared=all               \
-        --enable-so                            \
-        --enable-suexec                        \
-        --enable-cache                         \
-        --enable-disk-cache                    \
-        --enable-mem-cache                     \
-        --enable-file-cache                    \
-        --enable-ssl                           \
-        --with-ssl                             \
-        --enable-deflate                       \
-        --enable-cgid                          \
-        --enable-proxy                         \
-        --enable-proxy-connect                 \
-        --enable-proxy-http                    \
-        --enable-proxy-ftp                     \
-        --enable-dbd > install.log 2>&1
+    pushd httpd-$APACHE_24_VERSION > /dev/null 2>&1
+    ./configure --prefix=$BUILDDIR/$APACHE_24_DIR \
+        --exec-prefix=$BUILDDIR/$APACHE_24_DIR    \
+        --enable-modules=all                      \
+        --enable-mods-shared=all                  \
+        --enable-so                               \
+        --enable-suexec                           \
+        --enable-cache                            \
+        --enable-disk-cache                       \
+        --enable-mem-cache                        \
+        --enable-file-cache                       \
+        --enable-ssl                              \
+        --with-ssl                                \
+        --enable-deflate                          \
+        --enable-cgid                             \
+        --enable-proxy                            \
+        --enable-proxy-connect                    \
+        --enable-proxy-http                       \
+        --enable-proxy-ftp                        \
+        --enable-dbd # > install.log 2>&1
     printf "."
     sed -i.bak 's/sc->proxy->protocol != SSL_PROTOCOL_SSLV2 &&/\/\/sc->proxy->protocol != SSL_PROTOCOL_SSLV2 &&/' modules/ssl/ssl_engine_io.c
     printf "."
-    make >> install.log 2>&1
+    make # >> install.log 2>&1
     printf "."
-    make install >> install.log 2>&1
+    make install # >> install.log 2>&1
     printf "."
     popd > /dev/null 2>&1
     popd > /dev/null 2>&1
-    pushd build/apache/conf > /dev/null 2>&1
+    pushd build/$APACHE_24_DIR/conf > /dev/null 2>&1
     sed -i.bak 's/Listen 80/Listen 8888/' httpd.conf
     sed -i.bak 's/LogLevel warn/LogLevel info/' httpd.conf
     sed -i.bak 's/#ServerName www.example.com:80/ServerName localhost/' httpd.conf
@@ -77,10 +77,10 @@ if [ ! -d "vendor/modsecurity-apache_2.7.7" ]; then
     tar xzf modsecurity-apache_2.7.7.tar.gz
     printf "."
     pushd modsecurity-apache_2.7.7 > /dev/null 2>&1
-    ./configure --prefix=$BUILDDIR/$APACHE_DIR \
-        --exec-prefix=$BUILDDIR/$APACHE_DIR \
-        --libdir=$BUILDDIR/$APACHE_DIR/lib \
-        --with-apxs=$BUILDDIR/$APACHE_DIR/bin/apxs > install.log 2>&1
+    ./configure --prefix=$BUILDDIR/$APACHE_24_DIR \
+        --exec-prefix=$BUILDDIR/$APACHE_24_DIR    \
+        --libdir=$BUILDDIR/$APACHE_24_DIR/lib     \
+        --with-apxs=$BUILDDIR/$APACHE_24_DIR/bin/apxs > install.log 2>&1
     printf "."
     make >> install.log 2>&1
     printf "."
@@ -88,10 +88,10 @@ if [ ! -d "vendor/modsecurity-apache_2.7.7" ]; then
     printf "."
     popd > /dev/null 2>&1
     popd > /dev/null 2>&1
-    mkdir build/apache/conf/modsecurity
-    cp -r modsecurity/* build/apache/conf/modsecurity/
+    mkdir build/$APACHE_24_DIR/conf/modsecurity
+    cp -r modsecurity/* build/$APACHE_24_DIR/conf/modsecurity/
 
-    cat <<EOF >> build/apache/conf/httpd.conf
+    cat <<EOF >> build/$APACHE_24_DIR/conf/httpd.conf
 LoadModule security2_module modules/mod_security2.so
 
 <IfModule security2_module>
@@ -126,7 +126,7 @@ if [ ! -d "vendor/geoip" ]; then
     pushd geoip > /dev/null 2>&1
     curl -s -O http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz
     gunzip GeoLiteCity.dat.gz
-    cp GeoLiteCity.dat ../../build/apache/conf
+    cp GeoLiteCity.dat ../../build/$APACHE_24_DIR/conf
     curl -s -O http://www.maxmind.com/download/geoip/api/mod_geoip2/mod_geoip2-latest.tar.gz
     tar xzf mod_geoip2-latest.tar.gz
     printf "."
@@ -139,11 +139,11 @@ if [ ! -d "vendor/geoip" ]; then
 
     #sed -i.bak '268s/.*/LogFormat "%h %l %u %t \\"%r\\" %>s %b \\"%{GEOIP_COUNTRY_CODE}e %{GEOIP_CITY}e %{GEOIP_REGION_NAME}e %{GEOIP_POSTAL_CODE}e %{GEOIP_LATITUDE}e %{GEOIP_LONGITUDE}e\\"" common/' build/apache/conf/httpd.conf
 
-    cat <<EOF >> build/apache/conf/httpd.conf
+    cat <<EOF >> build/$APACHE_24_DIR/conf/httpd.conf
 
 <IfModule geoip_module>
   GeoIPEnable On
-  GeoIPDBFile `pwd`/build/apache/conf/GeoLiteCity.dat
+  GeoIPDBFile `pwd`/build/apache24/conf/GeoLiteCity.dat
   GeoIPOutput All
 </IfModule>
 EOF

@@ -8,12 +8,12 @@ end
 
 namespace :apache do
   task :start do
-    `build/apache/bin/apachectl restart`
+    `build/apache24/bin/apachectl restart`
     sleep 1
   end
 
   task :stop do
-    `build/apache/bin/apachectl stop`
+    `build/apache24/bin/apachectl stop`
   end
 
   task :compile do
