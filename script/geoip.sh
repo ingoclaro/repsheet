@@ -26,7 +26,7 @@ install_mod_geoip () {
 
 <IfModule geoip_module>
   GeoIPEnable On
-  GeoIPDBFile `pwd`/build/apache24/conf/GeoLiteCity.dat
+  GeoIPDBFile $(pwd)/build/apache24/conf/GeoLiteCity.dat
   GeoIPOutput All
 </IfModule>
 EOF

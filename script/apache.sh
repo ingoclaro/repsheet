@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DIR=`pwd`
+DIR=$(pwd)
 BUILDDIR=$DIR/build
 APACHE_24_DIR=apache24
 APACHE_24_VERSION=2.4.9
