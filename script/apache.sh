@@ -33,24 +33,30 @@ install_apache () {
             --enable-proxy-ftp                        \
             --enable-dbd > install.log 2>&1
         printf "."
-        sed -i.bak 's/sc->proxy->protocol != SSL_PROTOCOL_SSLV2 &&/\/\/sc->proxy->protocol != SSL_PROTOCOL_SSLV2 &&/' modules/ssl/ssl_engine_io.c
-        printf "."
         make >> install.log 2>&1
         printf "."
         make install >> install.log 2>&1
         printf "."
         popd > /dev/null 2>&1
         popd > /dev/null 2>&1
-        pushd build/$APACHE_24_DIR/conf > /dev/null 2>&1
-        sed -i.bak 's/Listen 80/Listen 8888/' httpd.conf
-        sed -i.bak 's/LogLevel warn/LogLevel info/' httpd.conf
-        sed -i.bak 's/#ServerName www.example.com:80/ServerName localhost/' httpd.conf
-        sed -i.bak '123s/#//' httpd.conf # enable mod_unique_id (for ModSecurity)
-        sed -i.bak '142s/#//' httpd.conf # enable mod_slotmem_shm
-        popd > /dev/null 2>&1
         printf "."
-        printf " $GREEN [Complete] $RESET\n"
+        printf "$GREEN [Complete] $RESET\n"
     else
         printf "$BLUE * $GREEN Apache already installed $RESET\n"
     fi
+}
+
+configure_apache () {
+    printf "$BLUE * $YELLOW Configuring base Apache install$RESET "
+
+    pushd build/$APACHE_24_DIR/conf > /dev/null 2>&1
+    sed -i.bak 's/Listen 80/Listen 8888/' httpd.conf
+    sed -i.bak 's/LogLevel warn/LogLevel info/' httpd.conf
+    sed -i.bak 's/#ServerName www.example.com:80/ServerName localhost/' httpd.conf
+    sed -i.bak '123s/#//' httpd.conf # enable mod_unique_id (for ModSecurity)
+    sed -i.bak '142s/#//' httpd.conf # enable mod_slotmem_shm
+    popd > /dev/null 2>&1
+
+    printf "."
+    printf "$GREEN [Complete] $RESET\n"
 }

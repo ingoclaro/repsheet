@@ -3,6 +3,7 @@
 source script/apache.sh
 source script/modsecurity.sh
 source script/geoip.sh
+source script/repsheet.sh
 source script/nginx.sh
 
 set -o nounset
@@ -31,7 +32,15 @@ clean () {
 
 clean
 setup_local_directories
+
 install_apache
+configure_apache
+
 install_mod_security
+configure_modsecurity
+
 install_mod_geoip
+
+configure_repsheet
+
 install_nginx
