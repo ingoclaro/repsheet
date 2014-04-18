@@ -19,14 +19,20 @@ if [ ! -d "vendor" ]; then
     mkdir vendor > /dev/null 2>&1
 fi
 
-if [ ! -d "vendor/nginx-1.4.2" ]; then
-    printf "$BLUE * $YELLOW Installing nginx 1.4.2$RESET "
+if [ ! -d "vendor/nginx-1.4.7" ]; then
+    printf "$BLUE * $YELLOW Installing nginx 1.4.7$RESET "
     pushd vendor > /dev/null 2>&1
-    curl -s -L -O "http://nginx.org/download/nginx-1.4.2.tar.gz"
-    tar xzf "nginx-1.4.2.tar.gz"
+    curl -s -L -O "http://nginx.org/download/nginx-1.4.7.tar.gz"
+    tar xzf "nginx-1.4.7.tar.gz"
     printf "."
-    pushd "nginx-1.4.2" > /dev/null 2>&1
-    ./configure --with-debug --prefix=`pwd`/../../build/nginx --conf-path=conf/nginx.conf --error-log-path=logs/error.log --http-log-path=logs/access.log --add-module=../../nginx  > install.log 2>&1
+    pushd "nginx-1.4.7" > /dev/null 2>&1
+    ./configure                          \
+        --with-debug                     \
+        --prefix=`pwd`/../../build/nginx \
+        --conf-path=conf/nginx.conf      \
+        --error-log-path=logs/error.log  \
+        --http-log-path=logs/access.log  \
+        --add-module=../../nginx  > install.log 2>&1
     printf "."
     make >> install.log 2>&1
     printf "."
@@ -34,7 +40,6 @@ if [ ! -d "vendor/nginx-1.4.2" ]; then
     popd > /dev/null 2>&1
     popd > /dev/null 2>&1
     ln -sf `pwd`/nginx/nginx.conf `pwd`/build/nginx/conf/nginx.conf
-
     printf "."
     printf " $GREEN [Complete] $RESET\n"
 else
