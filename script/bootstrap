@@ -27,17 +27,36 @@ clean () {
     rm -rf build vendor
 }
 
-clean
-setup_local_directories
+print_usage () {
+    echo "Usage: {apache|nginx|clean}"
+}
 
-install_apache
-configure_apache
+if [[ "$#" -ne 1 ]]; then
+    print_usage
+    exit 1
+fi
 
-install_mod_security
-configure_modsecurity
+case "$1" in
+    apache)
+        setup_local_directories
+        install_apache
+        configure_apache
+        install_mod_security
+        configure_modsecurity
+        install_mod_geoip
+        configure_repsheet
+        ;;
+    nginx)
+        setup_local_directories
+	install_nginx
+        ;;
+    clean)
+        clean
+        ;;
+    *)
+	print_usage
+        exit 1
+        ;;
+esac
 
-install_mod_geoip
-
-configure_repsheet
-
-install_nginx
+exit $?

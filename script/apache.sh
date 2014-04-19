@@ -51,16 +51,20 @@ install_apache () {
 }
 
 configure_apache () {
-    printf "$BLUE * $YELLOW Configuring base Apache install$RESET "
+    if [[ -z $(grep localhost build/$APACHE_24_DIR/conf/httpd.conf) ]]; then
+        printf "$BLUE * $YELLOW Configuring base Apache install$RESET "
 
-    pushd build/$APACHE_24_DIR/conf > /dev/null 2>&1
-    sed -i.bak 's/Listen 80/Listen 8888/' httpd.conf
-    sed -i.bak 's/LogLevel warn/LogLevel info/' httpd.conf
-    sed -i.bak 's/#ServerName www.example.com:80/ServerName localhost/' httpd.conf
-    sed -i.bak '123s/#//' httpd.conf # enable mod_unique_id (for ModSecurity)
-    sed -i.bak '142s/#//' httpd.conf # enable mod_slotmem_shm
-    popd > /dev/null 2>&1
+        pushd build/$APACHE_24_DIR/conf > /dev/null 2>&1
+        sed -i.bak 's/Listen 80/Listen 8888/' httpd.conf
+        sed -i.bak 's/LogLevel warn/LogLevel info/' httpd.conf
+        sed -i.bak 's/#ServerName www.example.com:80/ServerName localhost/' httpd.conf
+        sed -i.bak '123s/#//' httpd.conf # enable mod_unique_id (for ModSecurity)
+        sed -i.bak '142s/#//' httpd.conf # enable mod_slotmem_shm
+        popd > /dev/null 2>&1
 
-    printf "."
-    printf "$GREEN [Complete] $RESET\n"
+        printf "."
+        printf "$GREEN [Complete] $RESET\n"
+    else
+        printf "$BLUE * $GREEN Apache already configured $RESET\n"
+    fi
 }

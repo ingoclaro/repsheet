@@ -1,7 +1,8 @@
 configure_repsheet () {
-    printf "$BLUE * $YELLOW Configuring Repsheet$RESET "
+    if [[ -z $(grep RepsheetEnabled build/$APACHE_24_DIR/conf/httpd.conf) ]]; then
+        printf "$BLUE * $YELLOW Configuring Repsheet$RESET "
 
-    cat <<EOF >> build/$APACHE_24_DIR/conf/httpd.conf
+        cat <<EOF >> build/$APACHE_24_DIR/conf/httpd.conf
 <IfModule repsheet_module>
   RepsheetEnabled On
   RepsheetRecorder On
@@ -18,6 +19,9 @@ configure_repsheet () {
   RepsheetRedisExpiry 24
 </IfModule>
 EOF
-    printf "."
-    printf " $GREEN [Complete] $RESET\n"
+        printf "."
+        printf " $GREEN [Complete] $RESET\n"
+    else
+        printf "$BLUE * $GREEN Repsheet already configured $RESET\n"
+    fi
 }

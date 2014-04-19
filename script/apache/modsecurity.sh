@@ -26,12 +26,12 @@ install_mod_security () {
 }
 
 configure_modsecurity () {
-    printf "$BLUE * $YELLOW Configuring ModSecurity$RESET "
+    if [[ ! -d "build/$APACHE_24_DIR/conf/modsecurity" ]] ; then
+        printf "$BLUE * $YELLOW Configuring ModSecurity$RESET "
+        mkdir build/$APACHE_24_DIR/conf/modsecurity
+        cp -r modsecurity/* build/$APACHE_24_DIR/conf/modsecurity/
 
-    mkdir build/$APACHE_24_DIR/conf/modsecurity
-    cp -r modsecurity/* build/$APACHE_24_DIR/conf/modsecurity/
-
-    cat <<EOF >> build/$APACHE_24_DIR/conf/httpd.conf
+        cat <<EOF >> build/$APACHE_24_DIR/conf/httpd.conf
 LoadModule security2_module modules/mod_security2.so
 
 <IfModule security2_module>
@@ -39,6 +39,9 @@ LoadModule security2_module modules/mod_security2.so
 </IfModule>
 EOF
 
-    printf "."
-    printf " $GREEN [Complete] $RESET\n"
+        printf "."
+        printf " $GREEN [Complete] $RESET\n"
+    else
+	printf "$BLUE * $GREEN ModSecurity already configured $RESET\n"
+    fi
 }
