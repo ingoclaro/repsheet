@@ -86,7 +86,7 @@ To activate and configure repsheet you will need to set some directives. The fol
 * `RepsheetPrefix <prefix>` - Sets the logger prefix. This will precede any repsheet apache log lines
 * `RepsheetRedisTimeout n` - Sets the time (in milliseconds) before the attempt to connect to redis will timeout and fail
 * `RepsheetRedisHost <host>` - Sets the host for the Redis connection
-* `RepsheetRedisTimeout <port>` - Sets the port for the Redis connection
+* `RepsheetRedisPort <port>` - Sets the port for the Redis connection
 * `RepsheetRedisMaxLength <max>` - Number of recorded requests a single IP can have before it is trimmed in Redis
 * `RepsheetRedisExpiry <hours>` - Number of hours of inactivity before an entry expires
 
